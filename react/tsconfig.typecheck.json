@@ -1,0 +1,20 @@
+{
+    // Typecheck-only config. The build (tsup) uses tsconfig.json and
+    // resolves @auther-sdk/frontend from its built dist via the workspace
+    // symlink. But `tsc --noEmit` runs without a prior build, so in CI the
+    // frontend dist doesn't exist yet and the import can't resolve. Map it
+    // to frontend's source here so typecheck stands alone — no build order
+    // dependency, and it checks against the real source types.
+    "extends": "./tsconfig.json",
+    "compilerOptions": {
+        "noEmit": true,
+        // Widen rootDir past react/src so frontend's source (pulled in via
+        // the path mapping below) isn't rejected as "outside rootDir".
+        // Harmless under noEmit — nothing is written.
+        "rootDir": "..",
+        "baseUrl": ".",
+        "paths": {
+            "@auther-sdk/frontend": ["../frontend/src/index.ts"]
+        }
+    }
+}

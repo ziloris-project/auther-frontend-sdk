@@ -1,0 +1,59 @@
+{
+  "name": "@auther-sdk/frontend",
+  "version": "1.0.3",
+  "description": "Official browser SDK for Auther — drop-in authentication for any website.",
+  "license": "Apache-2.0",
+  "homepage": "https://github.com/ziloris-project/auther-frontend-sdk/tree/main/frontend#readme",
+  "bugs": {
+    "url": "https://github.com/ziloris-project/auther-frontend-sdk/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ziloris-project/auther-frontend-sdk.git",
+    "directory": "frontend"
+  },
+  "author": {
+    "name": "Ziloris",
+    "url": "https://ziloris.com"
+  },
+  "type": "module",
+  "main": "./dist/auther.umd.js",
+  "module": "./dist/auther.es.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/auther.es.js",
+      "require": "./dist/auther.umd.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build":     "vite build",
+    "dev":       "vite build --watch",
+    "typecheck": "tsc --noEmit",
+    "clean":     "rm -rf dist"
+  },
+  "keywords": [
+    "auther",
+    "auth",
+    "authentication",
+    "sdk",
+    "browser"
+  ],
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "devDependencies": {
+    "@types/node": "^25.0.3",
+    "tslib": "^2.8.1",
+    "typescript": "^5.9.3",
+    "vite": "^7.3.0",
+    "vite-plugin-dts": "^4.5.4"
+  }
+}
