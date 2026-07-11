@@ -1,0 +1,69 @@
+# PR-time checks. Runs on every PR opened against main and on every
+# push to main as a belt-and-braces re-check after merge.
+#
+# The release workflow doesn't run on PRs — only on push to main —
+# because publishing from PR builds would be wrong. This workflow
+# exists so branch protection has status checks to require: a PR can't
+# merge into main unless both jobs (Typecheck + Build) are green.
+
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+jobs:
+  typecheck:
+    name: Typecheck
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # pnpm version is read from package.json#packageManager. Don't
+      # set `version:` here — pnpm/action-setup errors out if both are
+      # specified.
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'pnpm'
+
+      - run: pnpm install --frozen-lockfile
+
+      - run: pnpm -r typecheck
+
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # pnpm version is read from package.json#packageManager. Don't
+      # set `version:` here — pnpm/action-setup errors out if both are
+      # specified.
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'pnpm'
+
+      - run: pnpm install --frozen-lockfile
+
+      - run: pnpm -r build
+
+      # Sanity check that every publishable package would actually pass
+      # `npm publish` — catches missing `files`, missing exports
+      # entries, broken paths, etc. before a real release ever runs.
+      - name: Publish dry-run
+        run: pnpm -r --filter "@auther-sdk/*" exec npm publish --dry-run --access public
