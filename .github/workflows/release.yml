@@ -47,6 +47,10 @@ jobs:
   release:
     name: Version + publish
     runs-on: ubuntu-latest
+    # Referencing the secret in a job-level env lets the publish step gate
+    # on its presence — you can't read `secrets` directly in a step `if`.
+    env:
+      HAS_NPM_TOKEN: ${{ secrets.NPM_TOKEN != '' }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -85,8 +89,15 @@ jobs:
       - name: Typecheck
         run: pnpm -r typecheck
 
+      # Skipped (whole job stays green) until NPM_TOKEN is set. Without a
+      # token, changesets falls back to its OIDC trusted-publishing path,
+      # which — on a first publish from a pnpm workspace — dies on a
+      # `--git-checks` flag it wrongly forwards to `npm publish`. With the
+      # token present, changesets uses `pnpm publish` (token auth), which
+      # doesn't hit that bug, and provenance still attaches via id-token.
       - name: Create release PR or publish
         id: changesets
+        if: env.HAS_NPM_TOKEN == 'true'
         uses: changesets/action@v1
         with:
           # If pending changesets exist on main, open / update a Version
@@ -113,7 +124,9 @@ jobs:
       - name: Summarise outcome
         if: always()
         run: |
-          if [[ "${{ steps.changesets.outputs.published }}" == "true" ]]; then
+          if [[ "$HAS_NPM_TOKEN" != "true" ]]; then
+            echo "::notice::NPM_TOKEN secret is not set — release skipped. Add it in Settings ▸ Secrets and variables ▸ Actions to enable publishing."
+          elif [[ "${{ steps.changesets.outputs.published }}" == "true" ]]; then
             echo "📦 Published packages:"
             echo '${{ steps.changesets.outputs.publishedPackages }}'
           elif [[ "${{ steps.changesets.outputs.hasChangesets }}" == "true" ]]; then
