@@ -3,6 +3,9 @@ import { ApiClient } from './api/client';
 import { UIDom } from './ui/dom';
 import { renderForm } from './ui/templates';
 
+/** Default Auther backend, used when init() is not given an endpoint. */
+const DEFAULT_ENDPOINT = 'https://oautherbackend.ziloris.com/api/v1';
+
 export class Auther {
     private dom: UIDom;
     private api: ApiClient;
@@ -25,7 +28,7 @@ export class Auther {
     constructor() {
         this.dom = new UIDom();
         // Initialize an empty API client to be configured by init()
-        this.api = new ApiClient('https://OAutherbackend.ziloris.com/api/v1', '');
+        this.api = new ApiClient(DEFAULT_ENDPOINT, '');
 
         if (typeof window !== 'undefined') {
             this.dom.injectStyles();
@@ -34,7 +37,7 @@ export class Auther {
     }
 
     public init({ clientId, endpoint, onAuth }: { clientId: string; endpoint?: string; onAuth?: AuthCallback }): void {
-        const activeEndpoint = endpoint || 'https://OAutherbackend.ziloris.com/api/v1';
+        const activeEndpoint = endpoint || DEFAULT_ENDPOINT;
         this.api = new ApiClient(activeEndpoint, clientId);
         if (onAuth) this.onAuthCallback = onAuth;
 
