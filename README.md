@@ -42,11 +42,9 @@ pnpm dev               # watch-mode build for every package
 
 ## Releasing
 
-Releases are automated with [Changesets](https://github.com/changesets/changesets)
-and published to npm from CI, never from a developer machine. See
-[RELEASING.md](./RELEASING.md) for the full flow. In short: add a changeset in your
-PR, merge it, then merge the Version Packages PR that the bot opens. A push with no
-pending changeset publishes nothing.
+Automated with [Changesets](https://github.com/changesets/changesets) and published from
+CI. Add a changeset to your PR, merge it, then merge the "Version Packages" PR that opens.
+See [RELEASING.md](./RELEASING.md).
 
 ## License
 
