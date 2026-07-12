@@ -180,6 +180,9 @@ export class Auther {
     }
 
     public logout(): void {
+        // Revoke the refresh cookie on the server (best-effort, non-blocking)
+        // so the session is dead server-side, not just cleared locally.
+        void this.api.serverLogout();
         this.api.clearUser();
         this.armRefresh(null);
         this.notifyAuthChange(null);

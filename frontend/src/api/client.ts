@@ -153,4 +153,24 @@ export class ApiClient {
             localStorage.removeItem(STORAGE_KEY);
         }
     }
+
+    /**
+     * Best-effort server-side logout: revokes the httpOnly refresh cookie so
+     * the session cannot be resumed after the client clears local state.
+     * keepalive lets the request finish even if the page navigates away
+     * (logout is usually followed by a redirect). Failures are swallowed:
+     * the local session is cleared regardless.
+     */
+    public async serverLogout(): Promise<void> {
+        try {
+            await fetch(`${this.endpoint}/auth/logout`, {
+                method:      'POST',
+                credentials: 'include',
+                keepalive:   true,
+                headers:     { 'x-auther-client-id': this.clientId },
+            });
+        } catch {
+            /* offline or unreachable — local logout still proceeds */
+        }
+    }
 }
