@@ -12,6 +12,15 @@ export class ApiClient {
         this.clientId = clientId;
     }
 
+    /** Scheme + host of the configured backend, for validating postMessage senders. */
+    public getEndpointOrigin(): string {
+        try {
+            return new URL(this.endpoint).origin;
+        } catch {
+            return '';
+        }
+    }
+
     public async fetchConfig(): Promise<ProjectConfig | null> {
         try {
             const res = await fetch(`${this.endpoint}/auth/config`, {

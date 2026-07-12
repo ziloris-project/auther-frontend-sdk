@@ -108,8 +108,11 @@ export class Auther {
     }
 
     private handleOAuthMessage = (event: MessageEvent) => {
-        // Prevent random cross-origin injection.
-        // Once hosted, verify event.origin explicitly here if needed.
+        // Only trust messages from the Auther backend origin. Without this,
+        // any window (e.g. a malicious iframe or opener) could postMessage a
+        // forged auth payload and hijack the session.
+        if (event.origin !== this.api.getEndpointOrigin()) return;
+
         if (event.data && event.data.type === 'auther_oauth_sync') {
             const syncPayload = event.data.payload;
             try {
