@@ -74,6 +74,12 @@ jobs:
           registry-url: 'https://registry.npmjs.org'
           cache: 'pnpm'
 
+      # pnpm's publish delegates the registry PUT to npm, and OIDC trusted
+      # publishing needs npm >= 11.5.1. The runner ships npm 10, which
+      # fails OIDC auth and returns a misleading E404. Upgrade it.
+      - name: Upgrade npm to OIDC-capable version
+        run: npm install -g npm@latest
+
       - name: Install
         run: pnpm install --frozen-lockfile
 
