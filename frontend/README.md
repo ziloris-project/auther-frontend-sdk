@@ -2,7 +2,7 @@
 
 [![npm](https://img.shields.io/npm/v/@auther-sdk/frontend?style=flat&color=blue)](https://www.npmjs.com/package/@auther-sdk/frontend)
 
-Framework-agnostic browser SDK for [Auther](https://auther.ziloris.com) — drop-in
+Framework-agnostic browser SDK for [Auther](https://auther.ziloris.com): drop-in
 authentication for any website. One `init()` call renders the login/signup UI and keeps
 the user's session alive with proactive token refresh.
 
@@ -31,4 +31,4 @@ Full guide at [auther.ziloris.com/docs](https://auther.ziloris.com/docs).
 
 ## License
 
-[Apache-2.0](./LICENSE) © Ziloris
+[Apache-2.0](./LICENSE), Copyright Ziloris.
