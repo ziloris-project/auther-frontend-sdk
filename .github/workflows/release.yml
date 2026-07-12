@@ -15,7 +15,7 @@
 #      package.json, updates each package's CHANGELOG.md, and deletes the
 #      consumed changeset files.
 #   3. Merging that PR triggers this workflow again. This time there are
-#      no pending changesets, so the action runs `pnpm changeset publish`.
+#      no pending changesets, so the Publish step runs `pnpm -r publish`.
 #   4. Each publish is signed with sigstore provenance so npmjs.com
 #      renders a verified attestation badge linking the artifact to this
 #      exact workflow run.
@@ -26,8 +26,9 @@
 #   org/user:  ziloris-project
 #   repo:      auther-frontend-sdk
 #   workflow:  release.yml
-# Requires npm >= 11.5.1 and Node >= 22.14 (both ensured below) and the
-# id-token: write permission.
+# Publishing is done by pnpm (packageManager pnpm@10, which supports OIDC
+# and rewrites workspace:^ deps), not `changeset publish` (whose OIDC path
+# breaks on pnpm workspaces). Requires the id-token: write permission.
 #
 # Optional secret:
 #   - CHANGESETS_PAT — PAT used to open the Version Packages PR so that
@@ -73,10 +74,6 @@ jobs:
           registry-url: 'https://registry.npmjs.org'
           cache: 'pnpm'
 
-      # OIDC Trusted Publishing needs npm >= 11.5.1; Node 22 ships npm 10.
-      - name: Upgrade npm to OIDC-capable version
-        run: npm install -g npm@latest
-
       - name: Install
         run: pnpm install --frozen-lockfile
 
@@ -86,34 +83,28 @@ jobs:
       - name: Typecheck
         run: pnpm -r typecheck
 
-      - name: Create release PR or publish
+      # Changesets handles versioning ONLY. When changesets are pending it
+      # opens / updates the Version Packages PR; it does not publish here.
+      # `changeset publish` is deliberately not used: on a pnpm workspace
+      # its OIDC path forwards a pnpm-only `--git-checks` flag to
+      # `npm publish`, which npm rejects. pnpm's own publish (below) does
+      # OIDC natively and rewrites workspace:^ deps correctly.
+      - name: Version (open Version Packages PR)
         id: changesets
         uses: changesets/action@v1
         with:
-          # If pending changesets exist on main, open / update a Version
-          # Packages PR. If none exist (so the previous Version PR was
-          # just merged), run the publish command. Build already ran
-          # above, so publish just ships the existing dist.
           version: pnpm changeset version
-          publish: pnpm changeset publish
           commit:  'chore(release): version packages'
           title:   'chore(release): version packages'
         env:
-          # PAT (if set) makes the Version Packages PR trigger CI;
-          # otherwise GITHUB_TOKEN. Publishing itself uses OIDC, not this.
           GITHUB_TOKEN: ${{ secrets.CHANGESETS_PAT || secrets.GITHUB_TOKEN }}
-          # Provenance attaches a signed sigstore attestation linking each
-          # artifact back to this exact workflow run.
-          NPM_CONFIG_PROVENANCE: 'true'
 
-      - name: Summarise outcome
-        if: always()
-        run: |
-          if [[ "${{ steps.changesets.outputs.published }}" == "true" ]]; then
-            echo "📦 Published packages:"
-            echo '${{ steps.changesets.outputs.publishedPackages }}'
-          elif [[ "${{ steps.changesets.outputs.hasChangesets }}" == "true" ]]; then
-            echo "📝 Version Packages PR opened or updated."
-          else
-            echo "ℹ️  No pending changesets and nothing to publish."
-          fi
+      # Runs only when there are no pending changesets, i.e. versions are
+      # final (fresh push, or a Version Packages PR just merged). pnpm
+      # publishes every workspace package whose version is not yet on npm,
+      # authenticated by OIDC trusted publishing, signed with provenance.
+      - name: Publish to npm
+        if: steps.changesets.outputs.hasChangesets == 'false'
+        run: pnpm -r publish --no-git-checks --access public
+        env:
+          NPM_CONFIG_PROVENANCE: 'true'
