@@ -8,7 +8,6 @@ export class UIDom {
 
     public injectStyles(): void {
         if (document.getElementById('auther-styles')) return;
-        console.log("Auther: Injecting premium styles...");
         const styleSheet = document.createElement('style');
         styleSheet.id = 'auther-styles';
         styleSheet.type = 'text/css';
@@ -29,14 +28,12 @@ export class UIDom {
     public createOverlay(onClose: () => void): void {
         const existing = document.getElementById(this.overlayId);
         if (existing) {
-            console.log("Auther: Reusing existing overlay");
             this.overlay = existing;
             this.container = existing.querySelector('.auther-modal');
             this.contentWrapper = existing.querySelector('#auther-content-wrapper');
             return;
         }
 
-        console.log("Auther: Creating new overlay");
         this.overlay = document.createElement('div');
         this.overlay.id = this.overlayId;
 
