@@ -1,6 +1,6 @@
 {
   "name": "@auther-sdk/react",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "Official React bindings for Auther — drop-in AutherProvider with built-in session management and proactive token refresh.",
   "license": "Apache-2.0",
   "homepage": "https://github.com/ziloris-project/auther-frontend-sdk/tree/main/react#readme",
@@ -32,10 +32,10 @@
     "LICENSE"
   ],
   "scripts": {
-    "build":     "tsup src/index.ts --format cjs,esm --dts --clean --external react",
-    "dev":       "tsup src/index.ts --format cjs,esm --dts --external react --watch",
+    "build": "tsup src/index.ts --format cjs,esm --dts --clean --external react",
+    "dev": "tsup src/index.ts --format cjs,esm --dts --external react --watch",
     "typecheck": "tsc -p tsconfig.typecheck.json",
-    "clean":     "rm -rf dist"
+    "clean": "rm -rf dist"
   },
   "keywords": [
     "auther",
