@@ -1,4 +1,6 @@
-# Release pipeline driven by Changesets.
+# Release pipeline driven by Changesets, publishing to npm via OIDC
+# Trusted Publishing — no npm token (npm classic tokens were revoked in
+# Dec 2025).
 #
 # Authoring flow (a PR adding a feature):
 #   1. Make the code change.
@@ -13,27 +15,30 @@
 #      package.json, updates each package's CHANGELOG.md, and deletes the
 #      consumed changeset files.
 #   3. Merging that PR triggers this workflow again. This time there are
-#      no pending changesets, so the action runs the publish step
-#      instead: `pnpm release` → `changeset publish` → npm.
+#      no pending changesets, so the action runs `pnpm changeset publish`.
 #   4. Each publish is signed with sigstore provenance so npmjs.com
 #      renders a verified attestation badge linking the artifact to this
 #      exact workflow run.
 #
-# Required secrets:
-#   - NPM_TOKEN — automation token from npmjs.com with publish access to
-#     the @auther-sdk scope.
-#   - CHANGESETS_PAT (optional) — PAT used to open the Version Packages
-#     PR so that push-from-bot triggers CI. Falls back to GITHUB_TOKEN.
+# Auth: npm OIDC Trusted Publishing. NO secret token. Each published
+# package (@auther-sdk/frontend, @auther-sdk/react) must have a Trusted
+# Publisher configured on npmjs.com pointing at:
+#   org/user:  ziloris-project
+#   repo:      auther-frontend-sdk
+#   workflow:  release.yml
+# Requires npm >= 11.5.1 and Node >= 22.14 (both ensured below) and the
+# id-token: write permission.
 #
-# Required permissions: id-token write (for provenance), contents write
-# (to push the Version Packages branch + tags), pull-requests write
-# (to open the PR).
+# Optional secret:
+#   - CHANGESETS_PAT — PAT used to open the Version Packages PR so that
+#     push-from-bot triggers CI. Falls back to GITHUB_TOKEN.
 
 name: Release
 
 on:
   push:
     branches: [main]
+  workflow_dispatch: {}
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -47,10 +52,6 @@ jobs:
   release:
     name: Version + publish
     runs-on: ubuntu-latest
-    # Referencing the secret in a job-level env lets the publish step gate
-    # on its presence — you can't read `secrets` directly in a step `if`.
-    env:
-      HAS_NPM_TOKEN: ${{ secrets.NPM_TOKEN != '' }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -72,11 +73,7 @@ jobs:
           registry-url: 'https://registry.npmjs.org'
           cache: 'pnpm'
 
-      # npm 10 ships with Node 22 but only uses OIDC for provenance
-      # attestation — the actual publish PUT still goes through
-      # NPM_TOKEN. npm 11.5.1+ also routes the publish PUT through the
-      # GitHub OIDC trusted-publisher flow. Upgrade so whichever auth
-      # path is configured on npmjs.com is available.
+      # OIDC Trusted Publishing needs npm >= 11.5.1; Node 22 ships npm 10.
       - name: Upgrade npm to OIDC-capable version
         run: npm install -g npm@latest
 
@@ -89,44 +86,30 @@ jobs:
       - name: Typecheck
         run: pnpm -r typecheck
 
-      # Skipped (whole job stays green) until NPM_TOKEN is set. Without a
-      # token, changesets falls back to its OIDC trusted-publishing path,
-      # which — on a first publish from a pnpm workspace — dies on a
-      # `--git-checks` flag it wrongly forwards to `npm publish`. With the
-      # token present, changesets uses `pnpm publish` (token auth), which
-      # doesn't hit that bug, and provenance still attaches via id-token.
       - name: Create release PR or publish
         id: changesets
-        if: env.HAS_NPM_TOKEN == 'true'
         uses: changesets/action@v1
         with:
           # If pending changesets exist on main, open / update a Version
           # Packages PR. If none exist (so the previous Version PR was
-          # just merged), run the publish command.
+          # just merged), run the publish command. Build already ran
+          # above, so publish just ships the existing dist.
           version: pnpm changeset version
-          publish: pnpm release
+          publish: pnpm changeset publish
           commit:  'chore(release): version packages'
           title:   'chore(release): version packages'
         env:
-          # Prefer PAT for the Version Packages PR so push-from-bot PRs
-          # trigger CI. Falls back to GITHUB_TOKEN if the secret isn't
-          # set (publish-only flows still work in that case).
+          # PAT (if set) makes the Version Packages PR trigger CI;
+          # otherwise GITHUB_TOKEN. Publishing itself uses OIDC, not this.
           GITHUB_TOKEN: ${{ secrets.CHANGESETS_PAT || secrets.GITHUB_TOKEN }}
-          # NPM_TOKEN authorises the publish PUT. When an OIDC trusted
-          # publisher is also configured on npmjs.com (npm 11.5.1+), the
-          # token becomes a no-op and OIDC handles auth instead.
-          NPM_TOKEN:    ${{ secrets.NPM_TOKEN }}
-          # Provenance attaches a signed sigstore attestation linking
-          # each artifact back to this exact workflow run. Visible as a
-          # verified badge on npmjs.com.
+          # Provenance attaches a signed sigstore attestation linking each
+          # artifact back to this exact workflow run.
           NPM_CONFIG_PROVENANCE: 'true'
 
       - name: Summarise outcome
         if: always()
         run: |
-          if [[ "$HAS_NPM_TOKEN" != "true" ]]; then
-            echo "::notice::NPM_TOKEN secret is not set — release skipped. Add it in Settings ▸ Secrets and variables ▸ Actions to enable publishing."
-          elif [[ "${{ steps.changesets.outputs.published }}" == "true" ]]; then
+          if [[ "${{ steps.changesets.outputs.published }}" == "true" ]]; then
             echo "📦 Published packages:"
             echo '${{ steps.changesets.outputs.publishedPackages }}'
           elif [[ "${{ steps.changesets.outputs.hasChangesets }}" == "true" ]]; then
