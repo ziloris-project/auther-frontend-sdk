@@ -38,8 +38,6 @@ export class Auther {
         this.api = new ApiClient(activeEndpoint, clientId);
         if (onAuth) this.onAuthCallback = onAuth;
 
-        console.log(`Auther: Initialized with Client ID: ${clientId}`);
-
         this.checkForSyncPayload();
         this.armRefresh(this.api.getUser());
         if (typeof document !== 'undefined') {
@@ -255,7 +253,6 @@ export class Auther {
 
                             try {
                                 const user = await this.api.verifyOAuth('google', response.code);
-                                console.log('Auther: OAuth Success', user);
                                 this.api.saveUser(user);
                                 this.armRefresh(user);
                                 this.notifyAuthChange(user);
@@ -304,7 +301,6 @@ export class Auther {
 
             try {
                 const user = await this.api.authenticate(this.state, data);
-                console.log('Auther: Success', user);
                 this.api.saveUser(user);
                 this.armRefresh(user);
                 this.notifyAuthChange(user);
