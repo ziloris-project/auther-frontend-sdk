@@ -9,7 +9,6 @@ import {
 } from 'react';
 import auther from '@auther-sdk/frontend';
 import type { AuthUser as FrontendAuthUser } from '@auther-sdk/frontend';
-import { setEndpoint, setExpiresAt, clearSession, callRefresh, getExpiresAt } from './session';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -18,8 +17,8 @@ export type AuthUser = FrontendAuthUser;
 export interface AutherProviderProps {
     /** Your Auther client key (public). */
     clientId: string;
-    /** Auther API endpoint, e.g. "https://oautherbackend.ziloris.com/api/v1". */
-    endpoint: string;
+    /** Auther API endpoint. Optional; defaults to the Auther production API. */
+    endpoint?: string;
     children: ReactNode;
 }
 
@@ -36,16 +35,6 @@ export interface AutherContextValue {
 
 const AutherContext = createContext<AutherContextValue | null>(null);
 
-// ── Helpers ──────────────────────────────────────────────────────────────────
-
-function armSession(u: AuthUser | null) {
-    if (u) {
-        setExpiresAt(u.expiresAt);
-    } else {
-        clearSession();
-    }
-}
-
 // ── Provider ─────────────────────────────────────────────────────────────────
 
 export function AutherProvider({ clientId, endpoint, children }: AutherProviderProps) {
@@ -53,45 +42,26 @@ export function AutherProvider({ clientId, endpoint, children }: AutherProviderP
     const [ready, setReady] = useState(false);
 
     useEffect(() => {
-        // Point the session module at the correct endpoint
-        setEndpoint(endpoint);
+        let active = true;
 
-        // Initialise the underlying frontend SDK
-        auther.init({
-            clientId,
-            endpoint,
-            onAuth: (u: AuthUser | null) => {
-                setUser(u);
-                armSession(u);
-            },
+        // Initialise the underlying SDK. It holds the access token in memory
+        // only and restores the session from the httpOnly refresh cookie.
+        auther.init({ clientId, endpoint });
+
+        // Await the initial restore so `ready` flips exactly when the session
+        // is resolved (avoiding a logged-out flash on reload). refresh()
+        // de-dupes in-flight calls, so this shares init()'s restore rather than
+        // triggering a second one.
+        auther.refresh().finally(() => { if (active) setReady(true); });
+
+        // Track subsequent login / logout / background refresh.
+        const unsub = auther.onAuthStateChange((u) => {
+            if (active) setUser(u as AuthUser | null);
         });
-
-        // Resolve existing session on mount (page refresh / SSR hydration)
-        const existing = auther.getUser() as AuthUser | null;
-        setUser(existing);
-        armSession(existing);
-        setReady(true);
-
-        // Stay in sync with future login / logout events
-        const unsub = auther.onAuthStateChange((u: AuthUser | null) => {
-            setUser(u);
-            armSession(u);
-        });
-
-        // When the user returns to a suspended tab, check token freshness
-        const onVisible = () => {
-            if (document.visibilityState !== 'visible') return;
-            const exp = getExpiresAt();
-            if (exp && Date.now() > exp - 60_000) {
-                callRefresh();
-            }
-        };
-        document.addEventListener('visibilitychange', onVisible);
 
         return () => {
+            active = false;
             unsub();
-            document.removeEventListener('visibilitychange', onVisible);
-            clearSession();
         };
     }, [clientId, endpoint]);
 
@@ -100,16 +70,10 @@ export function AutherProvider({ clientId, endpoint, children }: AutherProviderP
             value={{
                 user,
                 ready,
-                login: () => auther.login(),
-                signup: () => auther.signup(),
-                getToken: async () => {
-                    const maybeGetFreshToken = (auther as any).getFreshToken as (() => Promise<string | null>) | undefined;
-                    return maybeGetFreshToken ? maybeGetFreshToken() : auther.getToken();
-                },
-                logout: () => {
-                    auther.logout();
-                    clearSession();
-                },
+                login:    () => auther.login(),
+                signup:   () => auther.signup(),
+                logout:   () => auther.logout(),
+                getToken: () => auther.getFreshToken(),
             }}
         >
             {children}
