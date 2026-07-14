@@ -1,11 +1,16 @@
 import { AuthUser, ProjectConfig, ViewState } from '../core/types';
 
-const STORAGE_KEY = 'auther_user';
 const REFRESH_SKEW_MS = 60_000;
 
 export class ApiClient {
     private endpoint: string;
     private clientId: string;
+
+    // Session lives ONLY in memory. The access token is never written to
+    // localStorage (an XSS-readable store); the session is restored on page
+    // load by calling /refresh, which is authenticated by the httpOnly,
+    // JS-unreadable refresh cookie.
+    private user: AuthUser | null = null;
 
     constructor(endpoint: string, clientId: string) {
         this.endpoint = endpoint;
@@ -89,10 +94,13 @@ export class ApiClient {
         };
     }
 
+    /**
+     * Exchange the httpOnly refresh cookie for a fresh access token. Also used
+     * on page load to restore the session (memory starts empty), so it does
+     * NOT require a prior in-memory user. Returns null when there is no valid
+     * session (e.g. logged out or the refresh cookie expired).
+     */
     public async refresh(): Promise<AuthUser | null> {
-        const existing = this.getUser();
-        if (!existing) return null;
-
         const res = await fetch(`${this.endpoint}/auth/refresh`, {
             method: 'POST',
             credentials: 'include',
@@ -102,48 +110,40 @@ export class ApiClient {
         });
 
         if (!res.ok) {
-            if (res.status === 401) this.clearUser();
+            this.clearUser();
             return null;
         }
 
         const result = await res.json();
-        const refreshed: AuthUser = {
-            ...existing,
-            accessToken:      result.data.accessToken,
-            expiresAt:        result.data.expiresAt,
-            refreshExpiresAt: result.data.refreshExpiresAt,
+        const d = result.data;
+        if (!d?.user || !d?.accessToken) {
+            this.clearUser();
+            return null;
+        }
+
+        const user: AuthUser = {
+            id:               d.user.id,
+            email:            d.user.email,
+            accessToken:      d.accessToken,
+            expiresAt:        d.expiresAt,
+            refreshExpiresAt: d.refreshExpiresAt,
         };
-        this.saveUser(refreshed);
-        return refreshed;
+        this.user = user;
+        return user;
     }
 
     public saveUser(user: AuthUser): void {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(user));
-    }
-
-    public getStoredUser(): AuthUser | null {
-        if (typeof window === 'undefined') return null;
-        try {
-            const raw = localStorage.getItem(STORAGE_KEY);
-            return raw ? JSON.parse(raw) as AuthUser : null;
-        } catch {
-            return null;
-        }
+        this.user = user;
     }
 
     public getUser(): AuthUser | null {
-        if (typeof window === 'undefined') return null;
-        try {
-            const user = this.getStoredUser();
-            if (!user) return null;
-            if (!user.accessToken || Date.now() > user.refreshExpiresAt) {
-                localStorage.removeItem(STORAGE_KEY);
-                return null;
-            }
-            return user;
-        } catch {
+        const user = this.user;
+        if (!user) return null;
+        if (!user.accessToken || Date.now() > user.refreshExpiresAt) {
+            this.user = null;
             return null;
         }
+        return user;
     }
 
     public getToken(): string | null {
@@ -158,9 +158,7 @@ export class ApiClient {
     }
 
     public clearUser(): void {
-        if (typeof window !== 'undefined') {
-            localStorage.removeItem(STORAGE_KEY);
-        }
+        this.user = null;
     }
 
     /**
