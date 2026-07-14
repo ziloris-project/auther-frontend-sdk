@@ -42,7 +42,13 @@ export class Auther {
         if (onAuth) this.onAuthCallback = onAuth;
 
         this.checkForSyncPayload();
-        this.armRefresh(this.api.getUser());
+        // Nothing is persisted locally, so restore the session from the
+        // httpOnly refresh cookie on load, unless a sync payload just set it.
+        if (this.api.getUser()) {
+            this.armRefresh(this.api.getUser());
+        } else {
+            void this.refresh();
+        }
         if (typeof document !== 'undefined') {
             document.removeEventListener('visibilitychange', this.visibilityHandler);
             document.addEventListener('visibilitychange', this.visibilityHandler);
