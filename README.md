@@ -24,10 +24,13 @@ pnpm add @auther-sdk/frontend    # any website
 ```tsx
 import { AutherProvider, useAuther } from '@auther-sdk/react';
 
-<AutherProvider config={{ projectId: 'proj_live_xxxxxxxxxxxx' }}>
+<AutherProvider clientId="req_live_xxxxxxxxxxxx">
     <App />
 </AutherProvider>;
 ```
+
+Tokens are held in memory (never localStorage); the session is restored from an
+HTTP-only refresh cookie, so gate on `ready` from `useAuther()`.
 
 Full guide at [auther.ziloris.com/docs](https://auther.ziloris.com/docs).
 

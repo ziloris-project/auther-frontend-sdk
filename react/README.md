@@ -19,16 +19,27 @@ import { AutherProvider, useAuther } from '@auther-sdk/react';
 
 function App() {
     return (
-        <AutherProvider config={{ projectId: 'proj_live_xxxxxxxxxxxx' }}>
+        // endpoint is optional and defaults to the Auther production API
+        <AutherProvider clientId="req_live_xxxxxxxxxxxx">
             <Dashboard />
         </AutherProvider>
     );
 }
 
 function Dashboard() {
-    const { user, isLoading } = useAuther();
-    if (isLoading) return <p>Loading...</p>;
-    return <p>Signed in as {user?.email}</p>;
+    const { user, ready, login, logout } = useAuther();
+
+    // `ready` is false until the session is restored from the refresh
+    // cookie. Gate on it to avoid a logged-out flash on reload.
+    if (!ready) return <p>Loading...</p>;
+    if (!user)  return <button onClick={login}>Sign in</button>;
+
+    return (
+        <>
+            <p>Signed in as {user.email}</p>
+            <button onClick={logout}>Sign out</button>
+        </>
+    );
 }
 ```
 
