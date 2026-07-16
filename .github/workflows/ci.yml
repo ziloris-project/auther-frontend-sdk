@@ -6,17 +6,22 @@
 # exists so branch protection has status checks to require: a PR can't
 # merge into main unless both jobs (Typecheck + Build) are green.
 #
-# workflow_dispatch exists for the "Version Packages" PR. GitHub will
-# not trigger workflows for events raised by GITHUB_TOKEN (its guard
-# against recursive CI), so the PR the changesets action opens gets no
-# CI, never reports Typecheck/Build, and can never satisfy branch
-# protection. Dispatching this workflow against that branch attaches
-# real check runs to the same commit, so the release PR merges on its
-# own merits instead of needing an admin bypass every single release.
+# workflow_dispatch is here so these checks can be run by hand against
+# any branch. Note what it does NOT do: it cannot unblock the "Version
+# Packages" PR. GitHub will not trigger workflows for events raised by
+# GITHUB_TOKEN (its guard against recursive CI), so the PR the
+# changesets action opens gets no CI and never reports Typecheck/Build,
+# which branch protection requires. Dispatching this workflow against
+# that branch does attach passing check runs to the PR's head commit,
+# but GitHub only counts checks toward protection when the triggering
+# event is tied to the PR itself, so the PR stays blocked. Verified the
+# hard way: green check runs on the head SHA, statusCheckRollup null.
 #
-# Setting a CHANGESETS_PAT secret makes this unnecessary: release.yml
-# already prefers it over GITHUB_TOKEN, and a PAT-opened PR triggers CI
-# normally.
+# The actual fix is a CHANGESETS_PAT repo secret (classic PAT, repo +
+# workflow scope). release.yml already prefers it over GITHUB_TOKEN, so
+# no code change is needed: a PAT-opened PR triggers CI normally and
+# merges on its own merits. Until that exists, each release needs an
+# admin merge.
 
 name: CI
 
