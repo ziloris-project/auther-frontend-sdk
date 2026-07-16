@@ -17,6 +17,18 @@ export class ApiClient {
         this.clientId = clientId;
     }
 
+    /**
+     * Authorize URL for a provider that uses the redirect flow (GitHub, Meta).
+     * returnUrl tells the backend which origin may receive the resulting token
+     * via postMessage, so it must be our own origin.
+     */
+    public getOAuthUrl(provider: string): string {
+        const returnUrl = typeof window !== 'undefined' ? window.location.origin : '';
+        return `${this.endpoint}/auth/oauth/${encodeURIComponent(provider)}`
+            + `?clientId=${encodeURIComponent(this.clientId)}`
+            + `&returnUrl=${encodeURIComponent(returnUrl)}`;
+    }
+
     /** Scheme + host of the configured backend, for validating postMessage senders. */
     public getEndpointOrigin(): string {
         try {

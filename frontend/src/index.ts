@@ -71,6 +71,25 @@ export class Auther {
         }
     }
 
+    /**
+     * Open a provider's authorize page in a centered popup. The backend
+     * completes the exchange and posts the session back to this origin.
+     */
+    private openOAuthPopup(provider: string): void {
+        if (typeof window === 'undefined') return;
+
+        const width  = 500;
+        const height = 650;
+        const left   = window.screenX + Math.max(0, (window.outerWidth  - width)  / 2);
+        const top    = window.screenY + Math.max(0, (window.outerHeight - height) / 2);
+
+        window.open(
+            this.api.getOAuthUrl(provider),
+            'auther_oauth',
+            `width=${width},height=${height},left=${left},top=${top}`,
+        );
+    }
+
     private injectGoogleScript() {
         if (typeof window === 'undefined') return;
         if (document.getElementById('gsi-client')) return;
@@ -277,10 +296,12 @@ export class Auther {
                     });
 
                     client.requestCode();
-                } else if (provider === 'github' && this.config?.githubClientId) {
-                    // For GitHub, we can still use the backend redirect flow, or implement standard generic popup
-                    // Wait, let's keep it clean: 
-                    alert('GitHub OAuth is not fully configured for implicit frontend flow yet.');
+                } else if (provider === 'github' || provider === 'meta') {
+                    // Neither provider has a Google-style in-page code client, so
+                    // they use the backend redirect flow in a popup. The popup
+                    // posts the session back to this origin, which
+                    // handleOAuthMessage validates before accepting.
+                    this.openOAuthPopup(provider);
                 }
             });
         });
