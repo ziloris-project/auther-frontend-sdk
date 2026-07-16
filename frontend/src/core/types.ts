@@ -10,8 +10,10 @@ export interface ProjectConfig {
     clientId: string;
     googleEnabled: boolean;
     githubEnabled: boolean;
+    metaEnabled: boolean;
     googleClientId?: string;
     githubClientId?: string;
+    metaClientId?: string;
 }
 
 export type ViewState = 'login' | 'signup';
