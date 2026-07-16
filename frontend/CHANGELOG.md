@@ -1,5 +1,16 @@
 # @auther-sdk/frontend
 
+## 1.2.0
+
+### Minor Changes
+
+- 28ae3d1: GitHub and Meta sign-in now work. Clicking GitHub previously showed an "OAuth is not fully configured" alert, and Meta was never rendered at all. Both now open the backend redirect flow in a popup and post the session back to your origin, which the SDK validates before accepting.
+- ba3ca92: The signup form's name field now works. It has always been rendered and the value was thrown away: the SDK never sent it, so every user's name was silently discarded at signup. `AuthUser` gains a `name` field (null for users who signed up before this, or who left it blank), and OAuth sign-ins pick the name up from the provider.
+
+### Patch Changes
+
+- 46231a7: Docs: the package READMEs documented an API that never existed (a `config={{ projectId }}` prop and an `isLoading` flag). Corrected to the real surface: `clientId` with an optional `endpoint`, `ready` from `useAuther()`, the default `auther` singleton import, and a note that the token is held in memory and the session restores from the refresh cookie.
+
 ## 1.1.0
 
 ### Minor Changes
