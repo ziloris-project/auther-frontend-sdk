@@ -5,6 +5,18 @@
 # because publishing from PR builds would be wrong. This workflow
 # exists so branch protection has status checks to require: a PR can't
 # merge into main unless both jobs (Typecheck + Build) are green.
+#
+# workflow_dispatch exists for the "Version Packages" PR. GitHub will
+# not trigger workflows for events raised by GITHUB_TOKEN (its guard
+# against recursive CI), so the PR the changesets action opens gets no
+# CI, never reports Typecheck/Build, and can never satisfy branch
+# protection. Dispatching this workflow against that branch attaches
+# real check runs to the same commit, so the release PR merges on its
+# own merits instead of needing an admin bypass every single release.
+#
+# Setting a CHANGESETS_PAT secret makes this unnecessary: release.yml
+# already prefers it over GITHUB_TOKEN, and a PAT-opened PR triggers CI
+# normally.
 
 name: CI
 
@@ -13,6 +25,7 @@ on:
     branches: [main]
   push:
     branches: [main]
+  workflow_dispatch:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
