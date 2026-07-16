@@ -1,7 +1,7 @@
 {
   "name": "@auther-sdk/react",
-  "version": "1.2.0",
-  "description": "Official React bindings for Auther \u2014 drop-in AutherProvider with built-in session management and proactive token refresh.",
+  "version": "1.2.1",
+  "description": "Official React bindings for Auther — drop-in AutherProvider with built-in session management and proactive token refresh.",
   "license": "Apache-2.0",
   "homepage": "https://github.com/ziloris-project/auther-frontend-sdk/tree/main/react#readme",
   "bugs": {
