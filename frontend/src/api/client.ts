@@ -74,6 +74,7 @@ export class ApiClient {
         return {
             id:               result.data.user.id,
             email:            result.data.user.email,
+            name:             result.data.user.name ?? null,
             accessToken:      result.data.accessToken,
             expiresAt:        result.data.expiresAt,
             refreshExpiresAt: result.data.refreshExpiresAt,
@@ -100,6 +101,7 @@ export class ApiClient {
         return {
             id:               result.data.user.id,
             email:            result.data.user.email,
+            name:             result.data.user.name ?? null,
             accessToken:      result.data.accessToken,
             expiresAt:        result.data.expiresAt,
             refreshExpiresAt: result.data.refreshExpiresAt,
@@ -136,6 +138,7 @@ export class ApiClient {
         const user: AuthUser = {
             id:               d.user.id,
             email:            d.user.email,
+            name:             d.user.name ?? null,
             accessToken:      d.accessToken,
             expiresAt:        d.expiresAt,
             refreshExpiresAt: d.refreshExpiresAt,

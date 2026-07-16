@@ -114,6 +114,7 @@ export class Auther {
                 const authUser: AuthUser = {
                     id:               decoded.id,
                     email:            decoded.email,
+                    name:             decoded.name ?? null,
                     accessToken:      decoded.accessToken,
                     expiresAt:        decoded.expiresAt,
                     refreshExpiresAt: decoded.refreshExpiresAt,
@@ -146,6 +147,7 @@ export class Auther {
                 const authUser: AuthUser = {
                     id:               decoded.id,
                     email:            decoded.email,
+                    name:             decoded.name ?? null,
                     accessToken:      decoded.accessToken,
                     expiresAt:        decoded.expiresAt,
                     refreshExpiresAt: decoded.refreshExpiresAt
@@ -319,10 +321,18 @@ export class Auther {
             const passInput = form.querySelector('input[type="password"]') as HTMLInputElement;
             if (!emailInput || !passInput) return;
 
-            const data = {
+            // The signup form has always rendered a name field and thrown the
+            // value away. Only sent on signup: the login form has no name input,
+            // and login must not accept one.
+            const nameInput = form.querySelector('input[type="text"]') as HTMLInputElement | null;
+
+            const data: { email: string; password: string; name?: string } = {
                 email: emailInput.value,
-                password: passInput.value
+                password: passInput.value,
             };
+            if (this.state === 'signup' && nameInput?.value.trim()) {
+                data.name = nameInput.value.trim();
+            }
 
             const btn = form.querySelector('button[type="submit"]') as HTMLButtonElement;
             const originalText = btn.innerText;
