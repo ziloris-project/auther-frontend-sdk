@@ -1,6 +1,6 @@
 {
   "name": "@auther-sdk/frontend",
-  "version": "1.2.1",
+  "version": "1.3.0",
   "description": "Official browser SDK for Auther — drop-in authentication for any website.",
   "license": "Apache-2.0",
   "homepage": "https://github.com/ziloris-project/auther-frontend-sdk/tree/main/frontend#readme",

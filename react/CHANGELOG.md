@@ -1,5 +1,12 @@
 # @auther-sdk/react
 
+## 1.3.0
+
+### Patch Changes
+
+- Updated dependencies [d60e22d]
+  - @auther-sdk/frontend@1.3.0
+
 ## 1.2.1
 
 ### Patch Changes
