@@ -54,6 +54,49 @@ export class ApiClient {
         }
     }
 
+    /** Ask for a sign-in link by email. Resolves once sent; the session arrives later, via the link. */
+    public async requestMagicLink(email: string): Promise<void> {
+        const res = await fetch(`${this.endpoint}/auth/magic-link`, {
+            method:      'POST',
+            credentials: 'include',
+            headers: {
+                'Content-Type':       'application/json',
+                'x-auther-client-id': this.clientId,
+            },
+            body: JSON.stringify({ email }),
+        });
+
+        if (!res.ok) {
+            const result = await res.json().catch(() => ({}));
+            throw new Error(result.message || 'Could not send the sign-in link');
+        }
+    }
+
+    /** Exchange a token from a magic link for a session. */
+    public async verifyMagicLink(token: string): Promise<AuthUser> {
+        const res = await fetch(`${this.endpoint}/auth/magic-link/verify`, {
+            method:      'POST',
+            credentials: 'include',
+            headers: {
+                'Content-Type':       'application/json',
+                'x-auther-client-id': this.clientId,
+            },
+            body: JSON.stringify({ token }),
+        });
+
+        const result = await res.json();
+        if (!res.ok) throw new Error(result.message || 'This sign-in link is invalid or has expired');
+
+        return {
+            id:               result.data.user.id,
+            email:            result.data.user.email,
+            name:             result.data.user.name ?? null,
+            accessToken:      result.data.accessToken,
+            expiresAt:        result.data.expiresAt,
+            refreshExpiresAt: result.data.refreshExpiresAt,
+        };
+    }
+
     public async authenticate(state: ViewState, data: any): Promise<AuthUser> {
         const res = await fetch(`${this.endpoint}/auth/${state}`, {
             method: 'POST',

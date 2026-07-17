@@ -13,11 +13,15 @@ export interface ProjectConfig {
     googleEnabled: boolean;
     githubEnabled: boolean;
     metaEnabled: boolean;
+    /** Sign in with an emailed link instead of a password. */
+    magicLinkEnabled: boolean;
     googleClientId?: string;
     githubClientId?: string;
     metaClientId?: string;
 }
 
-export type ViewState = 'login' | 'signup';
+// 'magic' is the email-only magic link request view; 'magicSent' is the
+// confirmation shown after it, which has no form at all.
+export type ViewState = 'login' | 'signup' | 'magic' | 'magicSent';
 
 export type AuthCallback = (user: AuthUser | null) => void;

@@ -9,7 +9,16 @@ export const getGithubIcon = (): string =>
 export const getMetaIcon = (): string =>
     `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M6.9 2.25c-2.6 0-4.65 2.1-4.65 6.06 0 3.6 1.77 6.06 4.35 6.06 1.86 0 3.15-1.02 4.86-3.93l1.2-2.07c.24-.42.48-.84.72-1.23l.75 1.35c1.86 3.36 3.03 5.88 5.7 5.88 2.55 0 4.02-2.31 4.02-5.85 0-4.14-2.07-6.27-4.53-6.27-1.98 0-3.42 1.32-5.13 4.29l-.63 1.11c-.15-.24-.3-.48-.42-.72C11.4 3.72 9.72 2.25 6.9 2.25zm-.09 2.4c1.44 0 2.61 1.05 4.11 3.66l.36.63-.99 1.71c-1.35 2.31-2.13 2.94-3.24 2.94-1.29 0-2.16-1.35-2.16-3.72 0-2.55.93-3.72 1.92-3.22zm10.29.03c1.14 0 2.16 1.14 2.16 3.75 0 2.31-.75 3.54-1.86 3.54-1.11 0-1.98-1.02-3.51-3.75l-.48-.87.51-.87c1.29-2.19 2.16-3.3 3.18-2.79z" fill="#0866FF"/></svg>`;
 
-export function renderForm(type: ViewState, config: ProjectConfig | null): string {
+export const getMagicLinkIcon = (): string =>
+    `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" xmlns="http://www.w3.org/2000/svg"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>`;
+
+export function renderForm(type: ViewState, config: ProjectConfig | null, magicEmail = ''): string {
+    // Magic link is its own view: no password field, and a different button.
+    // Squeezing it into the login form would mean a password input that is
+    // sometimes required and sometimes ignored.
+    if (type === 'magic')     return renderMagicLink();
+    if (type === 'magicSent') return renderMagicLinkSent(magicEmail);
+
     const isLogin = type === 'login';
     const title = isLogin ? 'Welcome back' : 'Create account';
     const subtitle = isLogin ? 'Enter your details to access your account' : 'Get started with your free account';
@@ -36,12 +45,21 @@ export function renderForm(type: ViewState, config: ProjectConfig | null): strin
                 Continue with Meta
             </button>` : '';
 
-    const hasSocial = !!(googleBtn || githubBtn || metaBtn);
+    // Not a social provider, but it belongs in the same stack: from the user's
+    // side it is another one-click way in that is not a password.
+    const magicBtn = config?.magicLinkEnabled ? `
+            <button class="auther-btn-social" type="button" data-magic="request">
+                ${getMagicLinkIcon()}
+                Email me a sign-in link
+            </button>` : '';
+
+    const hasSocial = !!(googleBtn || githubBtn || metaBtn || magicBtn);
     const socialStack = hasSocial ? `
         <div class="auther-social-stack">
             ${googleBtn}
             ${githubBtn}
             ${metaBtn}
+            ${magicBtn}
         </div>
 
         <div class="auther-divider">
@@ -79,6 +97,59 @@ export function renderForm(type: ViewState, config: ProjectConfig | null): strin
 
         <div class="auther-footer">
             ${toggleText} <span class="auther-link" data-switch="${targetState}">${toggleLink}</span>
+        </div>
+    `;
+}
+
+/**
+ * Magic link request view. Email only: there is no password in this flow, and
+ * showing one would suggest otherwise.
+ */
+export function renderMagicLink(): string {
+    return `
+        <div class="auther-header">
+            <h2 class="auther-title">Sign in with a link</h2>
+            <p class="auther-subtitle">We will email you a link that signs you in. No password needed.</p>
+        </div>
+
+        <form class="auther-form-real" data-magic="form">
+            <div class="auther-input-group">
+                <input type="email" class="auther-input" placeholder="Email address" required />
+            </div>
+
+            <button class="auther-btn-primary" type="submit">
+                Send sign-in link
+            </button>
+        </form>
+
+        <div class="auther-footer">
+            Prefer a password? <span class="auther-link" data-switch="login">Sign in</span>
+        </div>
+    `;
+}
+
+/**
+ * Shown after a link is requested.
+ *
+ * Deliberately says "if an account exists" rather than "check your inbox": the
+ * API does not reveal whether the address is registered, and a confident
+ * "we sent it" would leak exactly what that is protecting.
+ */
+export function renderMagicLinkSent(email: string): string {
+    const safeEmail = email.replace(/[&<>"']/g, (c) => (
+        { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c] as string
+    ));
+    return `
+        <div class="auther-header">
+            <h2 class="auther-title">Check your email</h2>
+            <p class="auther-subtitle">
+                If an account exists for <strong>${safeEmail}</strong>, a sign-in link is on its way.
+                It works once and expires in 15 minutes.
+            </p>
+        </div>
+
+        <div class="auther-footer">
+            <span class="auther-link" data-switch="magic">Use a different email</span>
         </div>
     `;
 }

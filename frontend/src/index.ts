@@ -11,6 +11,8 @@ export class Auther {
     private api: ApiClient;
 
     private state: ViewState = 'login';
+    /** Address the last magic link was sent to, for the confirmation view. */
+    private magicEmail = '';
     private isAnimating = false;
     private config: ProjectConfig | null = null;
 
@@ -42,6 +44,10 @@ export class Auther {
         if (onAuth) this.onAuthCallback = onAuth;
 
         this.checkForSyncPayload();
+        // A magic link landed here: exchange it for a session before deciding
+        // whether one needs restoring, or we would fire a needless refresh and
+        // briefly report the user as signed out.
+        void this.checkForMagicLink();
         // Nothing is persisted locally, so restore the session from the
         // httpOnly refresh cookie on load, unless a sync payload just set it.
         if (this.api.getUser()) {
@@ -131,6 +137,41 @@ export class Auther {
             } catch (err) {
                 console.error('Auther: Failed to parse sync payload', err);
             }
+        }
+    }
+
+    /**
+     * Complete a magic link sign-in when the user lands on ?auther_magic=TOKEN.
+     *
+     * The token is stripped from the URL either way. It is single-use and
+     * already spent, but leaving it in the address bar puts it in history, in
+     * any Referer header the page sends, and in whatever the user pastes to a
+     * friend.
+     */
+    private async checkForMagicLink(): Promise<void> {
+        if (typeof window === 'undefined') return;
+
+        const params = new URLSearchParams(window.location.search);
+        const token  = params.get('auther_magic');
+        if (!token) return;
+
+        const url = new URL(window.location.href);
+        url.searchParams.delete('auther_magic');
+        window.history.replaceState({}, document.title, url.pathname + url.search);
+
+        try {
+            const user = await this.api.verifyMagicLink(token);
+            this.api.saveUser(user);
+            this.armRefresh(user);
+            this.notifyAuthChange(user);
+            this.close();
+        } catch (err: any) {
+            // Expired or already used. Surfaced in the modal rather than an
+            // alert, so the user can just ask for another one.
+            console.error('Auther: magic link sign-in failed', err);
+            this.state = 'magic';
+            this.renderContent();
+            this.open();
         }
     }
 
@@ -247,7 +288,7 @@ export class Auther {
 
     private renderContent(): void {
         if (!this.dom.contentWrapper) return;
-        this.dom.contentWrapper.innerHTML = renderForm(this.state, this.config);
+        this.dom.contentWrapper.innerHTML = renderForm(this.state, this.config, this.magicEmail);
 
         // Bind State Switcher
         const switchBtn = this.dom.contentWrapper.querySelector('.auther-link');
@@ -306,6 +347,37 @@ export class Auther {
                     this.openOAuthPopup(provider);
                 }
             });
+        });
+
+        // "Email me a sign-in link" — switches to the email-only view.
+        const magicTrigger = this.dom.contentWrapper.querySelector('[data-magic="request"]');
+        magicTrigger?.addEventListener('click', () => this.switchState('magic'));
+
+        // The magic link request form.
+        const magicForm = this.dom.contentWrapper.querySelector('form[data-magic="form"]');
+        magicForm?.addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const emailInput = magicForm.querySelector('input[type="email"]') as HTMLInputElement;
+            if (!emailInput?.value.trim()) return;
+
+            const btn = magicForm.querySelector('button[type="submit"]') as HTMLButtonElement;
+            const originalText = btn.innerText;
+            btn.innerText = 'Sending...';
+            btn.disabled = true;
+
+            try {
+                await this.api.requestMagicLink(emailInput.value.trim());
+                // Show the confirmation whether or not the address is
+                // registered: the API does not say, and neither should we.
+                this.magicEmail = emailInput.value.trim();
+                this.switchState('magicSent');
+            } catch (err: any) {
+                console.error('Auther: magic link request failed', err);
+                alert(err.message || 'Could not send the sign-in link');
+                btn.innerText = originalText;
+                btn.disabled = false;
+            }
         });
 
         // Listen for OAuth Popup Messages (Optional if keeping legacy flows)
